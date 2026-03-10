@@ -46,7 +46,7 @@ class ScryptedCamera(ScryptedBaseEntity, Camera):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    snapshot_url, timeout=aiohttp.ClientTimeout(total=10)
+                    snapshot_url, timeout=aiohttp.ClientTimeout(total=10), ssl=False
                 ) as resp:
                     if resp.status == 200:
                         return await resp.read()

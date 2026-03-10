@@ -58,11 +58,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.info("Fetching entities for selected IDs: %s", selected_ids)
     devices, states = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
+    _LOGGER.info("Fetched %d devices and %d initial states", len(devices), len(states))
     for device in devices:
+        device_id = device.get("device_id", "")
+        cmps = device.get("cmps", {})
+        _LOGGER.info("Creating device %s with %d components: %s", device_id, len(cmps), list(cmps.keys()))
         manager.apply_entity_diff(
-            device_id=device.get("device_id", ""),
-            cmps=device.get("cmps"),
+            device_id=device_id,
+            cmps=cmps,
             dev=device.get("dev"),
         )
     # Apply initial states so entities show correct values right away
@@ -77,8 +82,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle config entry updates (e.g. device selection changed in OptionsFlow)."""
+    _LOGGER.info("Config entry updated — processing device selection changes")
     manager: EntityManager | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if not manager:
+        _LOGGER.warning("No EntityManager found for entry %s", entry.entry_id)
         return
 
     new_selected: list[str] = entry.data.get(CONF_SELECTED_DEVICE_IDS, [])
@@ -86,6 +93,8 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
     # Remove entities for devices that are no longer selected
     current_device_ids = list(manager.get_device_ids())
+    _LOGGER.info("Current device IDs in manager: %s", current_device_ids)
+    _LOGGER.info("New selected device IDs: %s", new_selected)
     for device_id in current_device_ids:
         if device_id not in new_set:
             _LOGGER.info("Device %s deselected — removing entities", device_id)
@@ -95,6 +104,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     scrypted_url = entry.data[CONF_SCRYPTED_URL].rstrip("/")
     ha_secret = entry.data[CONF_HA_SECRET]
     devices, states = await _fetch_entities(scrypted_url, ha_secret, new_selected, hass)
+    _LOGGER.info("Fetched %d devices for update", len(devices))
     for device in devices:
         device_id = device.get("device_id", "")
         if device_id not in current_device_ids:
