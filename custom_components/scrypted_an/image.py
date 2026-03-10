@@ -50,11 +50,12 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
     async def async_image(self) -> bytes | None:
         """Fetch image on-demand from plugin REST endpoint."""
         if not self._image_topic:
+            _LOGGER.warning("async_image called but no image_topic for %s", self._attr_unique_id)
             return None
 
         conn = self.hass.data[DOMAIN].get(f"{self._entry_id}_conn")
         if not conn:
-            _LOGGER.debug("No connection info for image fetch")
+            _LOGGER.warning("No connection info for image fetch")
             return None
 
         scrypted_url = conn["scrypted_url"]
@@ -69,11 +70,10 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
                     url, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
                 ) as resp:
                     if resp.status == 200:
-                        return await resp.read()
-                    if resp.status == 404:
-                        _LOGGER.debug("No image available yet for topic %s", self._image_topic)
-                    else:
-                        _LOGGER.warning("Image fetch failed: HTTP %s for topic %s", resp.status, self._image_topic)
+                        data = await resp.read()
+                        _LOGGER.debug("Image fetched OK for topic %s: %d bytes", self._image_topic, len(data))
+                        return data
+                    _LOGGER.warning("Image fetch HTTP %s for topic %s url %s", resp.status, self._image_topic, url)
         except Exception as e:
             _LOGGER.warning("Error fetching image for topic %s: %s", self._image_topic, e)
 
@@ -83,5 +83,6 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
         """Lightweight signal that a new image is available."""
         if not value:
             return
+        _LOGGER.debug("Image signal received for %s: %s", self._image_topic, value[:50] if value else "")
         self._image_last_updated = dt_util.utcnow()
         self.schedule_update_ha_state()

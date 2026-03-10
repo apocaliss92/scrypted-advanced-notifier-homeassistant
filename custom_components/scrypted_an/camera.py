@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import logging
 
+import aiohttp
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, ENDPOINT_HA_IMAGE
 from .base_entity import ScryptedBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,18 +39,25 @@ class ScryptedCamera(ScryptedBaseEntity, Camera):
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
-        """Fetch a snapshot from the plugin snapshot endpoint."""
-        import aiohttp
-        snapshot_url = self._cmp_config.get("still_image_url")
-        if not snapshot_url:
+        """Fetch snapshot from plugin's /public/ha/image endpoint using device_id."""
+        conn = self.hass.data[DOMAIN].get(f"{self._entry_id}_conn")
+        if not conn:
             return None
+
+        scrypted_url = conn["scrypted_url"]
+        ha_secret = conn["ha_secret"]
+        url = f"{scrypted_url}{ENDPOINT_HA_IMAGE}?device_id={self._device_id}"
+        ha_origin = str(self.hass.config.external_url or self.hass.config.internal_url or "")
+        headers = {"Authorization": f"Bearer {ha_secret}", "Origin": ha_origin}
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    snapshot_url, timeout=aiohttp.ClientTimeout(total=10), ssl=False
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
                 ) as resp:
                     if resp.status == 200:
                         return await resp.read()
+                    _LOGGER.debug("Camera snapshot fetch returned HTTP %s for %s", resp.status, self._device_id)
         except Exception as e:
-            _LOGGER.warning("Failed to fetch camera snapshot: %s", e)
+            _LOGGER.warning("Failed to fetch camera snapshot for %s: %s", self._device_id, e)
         return None

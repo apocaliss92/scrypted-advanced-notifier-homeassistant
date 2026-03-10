@@ -111,16 +111,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unsub_entity = hass.bus.async_listen(HA_EVENT_ENTITY_CHANGE, _on_entity_change)
     unsub_heartbeat = hass.bus.async_listen(HA_EVENT_HEARTBEAT, _on_heartbeat)
     hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity, unsub_heartbeat]
-    _LOGGER.info("Bus listeners registered for events: %s, %s, %s. Selected devices: %s",
-                 HA_EVENT_STATE_UPDATE, HA_EVENT_ENTITY_CHANGE, HA_EVENT_HEARTBEAT, selected_ids)
+    _LOGGER.warning("Bus listeners registered for events: %s, %s, %s. Selected devices: %s",
+                    HA_EVENT_STATE_UPDATE, HA_EVENT_ENTITY_CHANGE, HA_EVENT_HEARTBEAT, selected_ids)
     # Start heartbeat timeout — if no heartbeat arrives within timeout, entities go unavailable
     _reset_heartbeat_timeout()
 
     # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    _LOGGER.info("Fetching entities for selected IDs: %s", selected_ids)
+    _LOGGER.warning("Fetching entities for selected IDs: %s", selected_ids)
     devices, states = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
-    _LOGGER.info("Fetched %d devices and %d initial states", len(devices), len(states))
+    _LOGGER.warning("Fetched %d devices and %d initial states", len(devices), len(states))
     for device in devices:
         device_id = device.get("device_id", "")
         cmps = device.get("cmps", {})

@@ -9,5 +9,6 @@
   "integration_type": "hub",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/apocaliss92/scrypted-advanced-notifier/issues",
-  "version": "1.0.12"
+  "loggers": ["custom_components.scrypted_an"],
+  "version": "1.0.13"
 }
