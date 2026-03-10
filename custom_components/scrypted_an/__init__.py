@@ -58,13 +58,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    devices = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
+    devices, states = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
     for device in devices:
         manager.apply_entity_diff(
             device_id=device.get("device_id", ""),
             cmps=device.get("cmps"),
             dev=device.get("dev"),
         )
+    # Apply initial states so entities show correct values right away
+    for state in states:
+        manager.update_state(state.get("topic", ""), state.get("value", ""))
 
     # Listen for config entry updates (OptionsFlow device selection changes)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -91,7 +94,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     # Fetch and create entities for newly selected devices
     scrypted_url = entry.data[CONF_SCRYPTED_URL].rstrip("/")
     ha_secret = entry.data[CONF_HA_SECRET]
-    devices = await _fetch_entities(scrypted_url, ha_secret, new_selected, hass)
+    devices, states = await _fetch_entities(scrypted_url, ha_secret, new_selected, hass)
     for device in devices:
         device_id = device.get("device_id", "")
         if device_id not in current_device_ids:
@@ -101,6 +104,9 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
                 cmps=device.get("cmps"),
                 dev=device.get("dev"),
             )
+    # Apply initial states for new entities
+    for state in states:
+        manager.update_state(state.get("topic", ""), state.get("value", ""))
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -120,8 +126,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _fetch_entities(
     scrypted_url: str, ha_secret: str, selected_ids: list[str], hass: HomeAssistant
-) -> list[dict]:
-    """Fetch initial entity list from plugin REST endpoint."""
+) -> tuple[list[dict], list[dict]]:
+    """Fetch initial entity list and states from plugin REST endpoint.
+
+    Returns (devices, states) where states is a list of {topic, value} dicts.
+    """
     url = f"{scrypted_url}{ENDPOINT_HA_ENTITIES}"
     if selected_ids:
         url += "?device_ids=" + ",".join(selected_ids)
@@ -134,12 +143,12 @@ async def _fetch_entities(
             ) as resp:
                 if resp.status != 200:
                     _LOGGER.error("Failed to fetch entities: HTTP %s", resp.status)
-                    return []
+                    return [], []
                 data = await resp.json()
-                return data.get("devices", [])
+                return data.get("devices", []), data.get("states", [])
     except Exception as e:
         _LOGGER.error("Error fetching entities: %s", e)
-        return []
+        return [], []
 
 
 async def _send_command_to_plugin(
