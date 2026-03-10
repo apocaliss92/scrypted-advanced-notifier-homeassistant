@@ -24,6 +24,22 @@ class EntityManager:
         self._platform_callbacks: dict[str, AddEntitiesCallback] = {}
         # State subscribers: topic → list[callback]
         self._state_subscribers: dict[str, list] = {}
+        # Plugin connectivity
+        self._available = True
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    def set_available(self, available: bool) -> None:
+        """Update availability for all managed entities."""
+        if self._available == available:
+            return
+        self._available = available
+        for device_entities in self._entities.values():
+            for entity in device_entities.values():
+                if hasattr(entity, "set_plugin_available"):
+                    entity.set_plugin_available(available)
 
     def register_platform(self, platform: str, add_entities: AddEntitiesCallback) -> None:
         self._platform_callbacks[platform] = add_entities

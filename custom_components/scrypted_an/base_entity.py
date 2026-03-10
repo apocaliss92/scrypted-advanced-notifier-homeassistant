@@ -29,6 +29,7 @@ class ScryptedBaseEntity(Entity):
         self._cmp_config = cmp_config
         self._entity_manager = entity_manager
         self._state_value: str | None = None
+        self._plugin_available = True
 
         # Unique ID: device_id + component_key
         self._attr_unique_id = f"{device_id}_{component_key}"
@@ -47,6 +48,14 @@ class ScryptedBaseEntity(Entity):
             manufacturer=self._dev.get("mf", "Scrypted"),
             model=self._dev.get("mdl", "Advanced Notifier"),
         )
+
+    @property
+    def available(self) -> bool:
+        return self._plugin_available
+
+    def set_plugin_available(self, available: bool) -> None:
+        self._plugin_available = available
+        self.schedule_update_ha_state()
 
     def _on_state_update(self, value: str) -> None:
         self._state_value = value

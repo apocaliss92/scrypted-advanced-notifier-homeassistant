@@ -16,7 +16,9 @@ from .const import (
     ENDPOINT_HA_COMMAND,
     ENDPOINT_HA_ENTITIES,
     HA_EVENT_ENTITY_CHANGE,
+    HA_EVENT_HEARTBEAT,
     HA_EVENT_STATE_UPDATE,
+    HEARTBEAT_TIMEOUT_S,
 )
 from .entity_manager import EntityManager
 
@@ -41,20 +43,78 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Register bus listeners BEFORE fetching entities to avoid missing early push events
+    selected_set = set(selected_ids)
+
     async def _on_state_update(event: Event) -> None:
         topic = event.data.get("topic", "")
         value = event.data.get("value", "")
         manager.update_state(topic, value)
 
+    # Debounce entity_change events: collect device IDs for 2s then batch-fetch
+    pending_entity_changes: set[str] = set()
+    entity_change_timer: dict[str, Any] = {"handle": None}
+
+    async def _flush_entity_changes(_now: Any = None) -> None:
+        entity_change_timer["handle"] = None
+        if not pending_entity_changes:
+            return
+        device_ids = list(pending_entity_changes)
+        pending_entity_changes.clear()
+        _LOGGER.info("Batch-fetching entity details for %d devices: %s", len(device_ids), device_ids)
+        devices, states = await _fetch_entities(scrypted_url, ha_secret, device_ids, hass)
+        for device in devices:
+            did = device.get("device_id", "")
+            cmps = device.get("cmps", {})
+            dev = device.get("dev")
+            _LOGGER.info("Updating device %s with %d cmps", did, len(cmps))
+            manager.apply_entity_diff(device_id=did, cmps=cmps, dev=dev)
+        for state in states:
+            manager.update_state(state.get("topic", ""), state.get("value", ""))
+
     async def _on_entity_change(event: Event) -> None:
         device_id = event.data.get("device_id", "")
-        cmps = event.data.get("cmps")
-        dev = event.data.get("dev")
-        manager.apply_entity_diff(device_id=device_id, cmps=cmps, dev=dev)
+        # Only process entity changes for devices we have selected
+        if selected_set and device_id not in selected_set:
+            return
+        pending_entity_changes.add(device_id)
+        # Reset debounce timer (async_call_later returns a cancel callback)
+        if entity_change_timer["handle"] is not None:
+            entity_change_timer["handle"]()  # cancel previous
+        from homeassistant.helpers.event import async_call_later
+        entity_change_timer["handle"] = async_call_later(
+            hass, 2, _flush_entity_changes
+        )
+
+    # Heartbeat-based availability tracking
+    heartbeat_timeout_handle: dict[str, Any] = {"cancel": None}
+
+    def _mark_unavailable(_now: Any = None) -> None:
+        heartbeat_timeout_handle["cancel"] = None
+        _LOGGER.warning("Heartbeat timeout — marking all entities unavailable")
+        manager.set_available(False)
+
+    def _reset_heartbeat_timeout() -> None:
+        if heartbeat_timeout_handle["cancel"] is not None:
+            heartbeat_timeout_handle["cancel"]()
+        from homeassistant.helpers.event import async_call_later
+        heartbeat_timeout_handle["cancel"] = async_call_later(
+            hass, HEARTBEAT_TIMEOUT_S, _mark_unavailable
+        )
+
+    async def _on_heartbeat(event: Event) -> None:
+        if not manager.available:
+            _LOGGER.info("Heartbeat received — marking all entities available")
+            manager.set_available(True)
+        _reset_heartbeat_timeout()
 
     unsub_state = hass.bus.async_listen(HA_EVENT_STATE_UPDATE, _on_state_update)
     unsub_entity = hass.bus.async_listen(HA_EVENT_ENTITY_CHANGE, _on_entity_change)
-    hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity]
+    unsub_heartbeat = hass.bus.async_listen(HA_EVENT_HEARTBEAT, _on_heartbeat)
+    hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity, unsub_heartbeat]
+    _LOGGER.info("Bus listeners registered for events: %s, %s, %s. Selected devices: %s",
+                 HA_EVENT_STATE_UPDATE, HA_EVENT_ENTITY_CHANGE, HA_EVENT_HEARTBEAT, selected_ids)
+    # Start heartbeat timeout — if no heartbeat arrives within timeout, entities go unavailable
+    _reset_heartbeat_timeout()
 
     # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
