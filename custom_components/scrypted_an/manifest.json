@@ -15,5 +15,5 @@
   "loggers": [
     "custom_components.scrypted_an"
   ],
-  "version": "1.0.17"
+  "version": "1.0.18"
 }
