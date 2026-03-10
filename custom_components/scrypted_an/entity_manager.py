@@ -52,12 +52,26 @@ class EntityManager:
         new_keys = set(cmps.keys())
         old_keys = set(current.keys())
 
+        _LOGGER.info(
+            "apply_entity_diff device=%s: old_keys=%s, new_keys=%s",
+            device_id, old_keys, new_keys,
+        )
+
         # Remove entities that disappeared
-        for key in old_keys - new_keys:
+        removed = old_keys - new_keys
+        if removed:
+            _LOGGER.info("Removing %d entities from device %s: %s", len(removed), device_id, removed)
+        for key in removed:
             entity = current.pop(key, None)
             if entity is not None:
                 self.hass.async_create_task(entity.async_remove())
-                _LOGGER.debug("Removed entity %s / %s", device_id, key)
+                _LOGGER.info("Removed entity %s / %s", device_id, key)
+
+        # If all entities removed, clean up the device entry
+        if not new_keys and device_id in self._entities:
+            _LOGGER.info("All entities removed for device %s — cleaning up device entry", device_id)
+            del self._entities[device_id]
+            return
 
         # Add or update entities
         from . import build_entity  # avoid circular import
@@ -73,7 +87,7 @@ class EntityManager:
                 platform = cmp_config.get("platform")
                 add_cb = self._platform_callbacks.get(platform)
                 if add_cb is None:
-                    _LOGGER.debug("No platform callback for %s (device %s)", platform, device_id)
+                    _LOGGER.warning("No platform callback for %s (device %s, key %s)", platform, device_id, key)
                     continue
                 entity = build_entity(
                     hass=self.hass,
@@ -87,7 +101,9 @@ class EntityManager:
                 if entity is not None:
                     current[key] = entity
                     add_cb([entity])
-                    _LOGGER.debug("Added entity %s / %s (%s)", device_id, key, platform)
+                    _LOGGER.info("Added entity %s / %s (%s)", device_id, key, platform)
+                else:
+                    _LOGGER.warning("build_entity returned None for %s / %s (%s)", device_id, key, platform)
 
         self._entities[device_id] = current
 
