@@ -31,9 +31,11 @@ class ScryptedCamera(ScryptedBaseEntity, Camera):
 
     @property
     def is_streaming(self) -> bool:
-        return True
+        """Stream is on-demand only, not permanently connected."""
+        return False
 
     async def stream_source(self) -> str | None:
+        """Return RTSP URL only when HA requests the stream (on-demand)."""
         return self._cmp_config.get("rtsp_url") or self._cmp_config.get("stream_source")
 
     async def async_camera_image(
