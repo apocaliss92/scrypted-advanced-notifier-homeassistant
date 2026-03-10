@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+import time
 
 import aiohttp
 from homeassistant.components.image import ImageEntity
@@ -13,6 +14,8 @@ import homeassistant.util.dt as dt_util
 
 from .const import DOMAIN, ENDPOINT_HA_IMAGE
 from .base_entity import ScryptedBaseEntity
+
+MIN_IMAGE_UPDATE_INTERVAL = 15  # seconds
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +41,7 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
         ImageEntity.__init__(self, entity_manager.hass)
         self._image_topic: str | None = cmp_config.get("image_topic")
         self._image_last_updated: datetime | None = None
+        self._last_signal_time: float = 0
 
         # Subscribe to lightweight update signal (not base64 data)
         if self._image_topic:
@@ -83,6 +87,10 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
         """Lightweight signal that a new image is available."""
         if not value:
             return
+        now = time.monotonic()
+        if now - self._last_signal_time < MIN_IMAGE_UPDATE_INTERVAL:
+            return
+        self._last_signal_time = now
         _LOGGER.debug("Image signal received for %s: %s", self._image_topic, value[:50] if value else "")
         self._image_last_updated = dt_util.utcnow()
         self.schedule_update_ha_state()
