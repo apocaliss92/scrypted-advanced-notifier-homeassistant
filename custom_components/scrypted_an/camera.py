@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ENDPOINT_HA_IMAGE
+from .const import DOMAIN, ENDPOINT_HA_SNAPSHOT
 from .base_entity import ScryptedBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,25 +39,25 @@ class ScryptedCamera(ScryptedBaseEntity, Camera):
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
-        """Fetch snapshot from plugin's /public/ha/image endpoint using device_id."""
+        """Take a live snapshot via the plugin's /public/ha/snapshot endpoint."""
         conn = self.hass.data[DOMAIN].get(f"{self._entry_id}_conn")
         if not conn:
             return None
 
         scrypted_url = conn["scrypted_url"]
         ha_secret = conn["ha_secret"]
-        url = f"{scrypted_url}{ENDPOINT_HA_IMAGE}?device_id={self._device_id}"
+        url = f"{scrypted_url}{ENDPOINT_HA_SNAPSHOT}?device_id={self._device_id}"
         ha_origin = str(self.hass.config.external_url or self.hass.config.internal_url or "")
         headers = {"Authorization": f"Bearer {ha_secret}", "Origin": ha_origin}
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=15), ssl=False
                 ) as resp:
                     if resp.status == 200:
                         return await resp.read()
-                    _LOGGER.debug("Camera snapshot fetch returned HTTP %s for %s", resp.status, self._device_id)
+                    _LOGGER.debug("Camera snapshot returned HTTP %s for %s", resp.status, self._device_id)
         except Exception as e:
             _LOGGER.warning("Failed to fetch camera snapshot for %s: %s", self._device_id, e)
         return None
