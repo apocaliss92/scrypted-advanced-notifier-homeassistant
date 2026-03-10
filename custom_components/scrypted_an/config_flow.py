@@ -100,7 +100,7 @@ class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
                 ) as resp:
                     if resp.status == 401:
                         return [], "invalid_secret"

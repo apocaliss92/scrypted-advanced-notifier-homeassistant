@@ -98,7 +98,7 @@ async def _fetch_entities(
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)
+                url, headers=headers, timeout=aiohttp.ClientTimeout(total=15), ssl=False
             ) as resp:
                 if resp.status != 200:
                     _LOGGER.error("Failed to fetch entities: HTTP %s", resp.status)
@@ -119,7 +119,7 @@ async def _send_command_to_plugin(
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                url, json={"topic": topic, "value": value}, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                url, json={"topic": topic, "value": value}, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
             ) as resp:
                 if resp.status != 200:
                     _LOGGER.warning("Command POST failed: HTTP %s", resp.status)
