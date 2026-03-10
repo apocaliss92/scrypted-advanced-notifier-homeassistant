@@ -1,10 +1,18 @@
 """Config flow for Scrypted Advanced Notifier."""
 from __future__ import annotations
 
+import logging
+
 import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     CONF_HA_SECRET,
@@ -13,6 +21,8 @@ from .const import (
     DOMAIN,
     ENDPOINT_HA_DEVICES,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -54,7 +64,7 @@ class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_select_devices(
         self, user_input: dict | None = None
     ) -> FlowResult:
-        """Step 2: let the user pick which devices to import."""
+        """Step 2: multi-select which devices to import."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -71,22 +81,24 @@ class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                 )
 
-        device_choices = {
-            d["device_id"]: d["device_name"] for d in self._available_devices
-        }
+        options = [
+            SelectOptionDict(value=d["device_id"], label=d["device_name"])
+            for d in self._available_devices
+        ]
 
         return self.async_show_form(
             step_id="select_devices",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_SELECTED_DEVICE_IDS): vol.In(
-                        list(device_choices.keys())
+                    vol.Required(CONF_SELECTED_DEVICE_IDS): SelectSelector(
+                        SelectSelectorConfig(
+                            options=options,
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
                     ),
                 }
             ),
-            description_placeholders={
-                "device_count": str(len(self._available_devices))
-            },
             errors=errors,
         )
 
@@ -105,6 +117,12 @@ class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     if resp.status == 401:
                         return [], "invalid_secret"
                     if resp.status == 403:
+                        origin = headers.get("Origin", "")
+                        _LOGGER.error(
+                            "Origin not allowed by Scrypted plugin. Sent Origin: '%s'. "
+                            "Add this URL to the plugin's haAllowedOrigins setting.",
+                            origin,
+                        )
                         return [], "origin_not_allowed"
                     if resp.status != 200:
                         return [], "cannot_connect"
