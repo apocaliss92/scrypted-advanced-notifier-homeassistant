@@ -1,10 +1,13 @@
 """Sensor platform for Scrypted Advanced Notifier."""
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorEntity
+from datetime import datetime
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+import homeassistant.util.dt as dt_util
 
 from .const import DOMAIN
 from .base_entity import ScryptedBaseEntity
@@ -21,7 +24,15 @@ class ScryptedSensor(ScryptedBaseEntity, SensorEntity):
     """A sensor entity from Scrypted."""
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> str | datetime | None:
+        if self._state_value is None:
+            return None
+        # Timestamp device class requires a datetime object, not a string
+        if self.device_class == SensorDeviceClass.TIMESTAMP:
+            try:
+                return dt_util.parse_datetime(self._state_value)
+            except (ValueError, TypeError):
+                return None
         return self._state_value
 
     @property

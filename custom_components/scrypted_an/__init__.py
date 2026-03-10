@@ -22,7 +22,7 @@ from .entity_manager import EntityManager
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["binary_sensor", "sensor", "switch", "button", "select", "image", "camera"]
+PLATFORMS = ["alarm_control_panel", "binary_sensor", "sensor", "switch", "button", "select", "image", "camera"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -167,6 +167,7 @@ async def _send_command_to_plugin(
     """POST a command to the plugin's /public/ha/command REST endpoint."""
     url = f"{scrypted_url}{ENDPOINT_HA_COMMAND}"
     headers = {"Authorization": f"Bearer {ha_secret}", "Origin": ha_origin, "Content-Type": "application/json"}
+    _LOGGER.info("Sending command to plugin: topic=%s value=%s url=%s", topic, value, url)
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -174,14 +175,18 @@ async def _send_command_to_plugin(
             ) as resp:
                 if resp.status != 200:
                     _LOGGER.warning("Command POST failed: HTTP %s", resp.status)
+                else:
+                    _LOGGER.info("Command POST success: topic=%s value=%s", topic, value)
     except Exception as e:
         _LOGGER.warning("Failed to send command to plugin: %s", e)
 
 
 def send_command(hass: HomeAssistant, entry_id: str, topic: str, value: str) -> None:
     """Send a command to the plugin via REST POST /public/ha/command."""
+    _LOGGER.info("send_command called: topic=%s value=%s entry_id=%s", topic, value, entry_id)
     conn = hass.data[DOMAIN].get(f"{entry_id}_conn")
     if not conn:
+        _LOGGER.warning("send_command: no connection info for entry %s", entry_id)
         return
     ha_origin = str(hass.config.external_url or hass.config.internal_url or "")
     hass.async_create_task(
@@ -201,6 +206,9 @@ def build_entity(
     """Factory: instantiate the right HA entity class from a component config."""
     platform = cmp_config.get("platform")
 
+    if platform == "alarm_control_panel":
+        from .alarm_control_panel import ScryptedAlarmControlPanel
+        return ScryptedAlarmControlPanel(entry_id, device_id, dev, component_key, cmp_config, entity_manager)
     if platform == "binary_sensor":
         from .binary_sensor import ScryptedBinarySensor
         return ScryptedBinarySensor(entry_id, device_id, dev, component_key, cmp_config, entity_manager)

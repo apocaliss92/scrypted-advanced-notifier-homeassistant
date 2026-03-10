@@ -1,6 +1,8 @@
 """Switch platform for Scrypted Advanced Notifier."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -9,6 +11,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .base_entity import ScryptedBaseEntity
 from . import send_command
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -29,8 +33,10 @@ class ScryptedSwitch(ScryptedBaseEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         cmd_topic = self._cmp_config.get("cmd_t") or self._cmp_config.get("command_topic", "")
+        _LOGGER.info("Switch %s turn_on: topic=%s", self._attr_unique_id, cmd_topic)
         send_command(self.hass, self._entry_id, cmd_topic, "true")
 
     async def async_turn_off(self, **kwargs) -> None:
         cmd_topic = self._cmp_config.get("cmd_t") or self._cmp_config.get("command_topic", "")
+        _LOGGER.info("Switch %s turn_off: topic=%s", self._attr_unique_id, cmd_topic)
         send_command(self.hass, self._entry_id, cmd_topic, "false")
