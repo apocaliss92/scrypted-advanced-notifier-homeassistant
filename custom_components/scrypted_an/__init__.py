@@ -66,7 +66,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             dev=device.get("dev"),
         )
 
+    # Listen for config entry updates (OptionsFlow device selection changes)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle config entry updates (e.g. device selection changed in OptionsFlow)."""
+    manager: EntityManager | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if not manager:
+        return
+
+    new_selected: list[str] = entry.data.get(CONF_SELECTED_DEVICE_IDS, [])
+    new_set = set(new_selected)
+
+    # Remove entities for devices that are no longer selected
+    current_device_ids = list(manager.get_device_ids())
+    for device_id in current_device_ids:
+        if device_id not in new_set:
+            _LOGGER.info("Device %s deselected — removing entities", device_id)
+            manager.apply_entity_diff(device_id=device_id, cmps={}, dev={})
+
+    # Fetch and create entities for newly selected devices
+    scrypted_url = entry.data[CONF_SCRYPTED_URL].rstrip("/")
+    ha_secret = entry.data[CONF_HA_SECRET]
+    devices = await _fetch_entities(scrypted_url, ha_secret, new_selected, hass)
+    for device in devices:
+        device_id = device.get("device_id", "")
+        if device_id not in current_device_ids:
+            _LOGGER.info("Device %s newly selected — creating entities", device_id)
+            manager.apply_entity_diff(
+                device_id=device_id,
+                cmps=device.get("cmps"),
+                dev=device.get("dev"),
+            )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

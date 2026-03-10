@@ -39,6 +39,10 @@ class EntityManager:
     def subscribe_topic(self, topic: str, callback) -> None:
         self._state_subscribers.setdefault(topic, []).append(callback)
 
+    def get_device_ids(self) -> list[str]:
+        """Return the list of device IDs that currently have entities."""
+        return list(self._entities.keys())
+
     def apply_entity_diff(self, device_id: str, cmps: dict | None, dev: dict | None) -> None:
         """Apply an entity_change message: add/remove/update entities for device_id."""
         if cmps is None:
