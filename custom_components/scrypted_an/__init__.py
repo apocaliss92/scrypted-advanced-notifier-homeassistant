@@ -56,9 +56,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unsub_entity = hass.bus.async_listen(HA_EVENT_ENTITY_CHANGE, _on_entity_change)
     hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity]
 
-    # Set up platforms, then trigger Scrypted re-discovery by calling /public/ha/entities
+    # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
+    devices = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
+    for device in devices:
+        manager.apply_entity_diff(
+            device_id=device.get("device_id", ""),
+            cmps=device.get("cmps"),
+            dev=device.get("dev"),
+        )
 
     return True
 
