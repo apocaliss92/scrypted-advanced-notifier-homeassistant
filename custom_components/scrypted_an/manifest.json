@@ -5,6 +5,7 @@
     "@apocaliss92"
   ],
   "config_flow": true,
+  "dependencies": ["stream"],
   "documentation": "https://github.com/apocaliss92/scrypted-advanced-notifier",
   "integration_type": "hub",
   "iot_class": "local_push",

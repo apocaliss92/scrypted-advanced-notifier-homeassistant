@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 import aiohttp
-from homeassistant.components.camera import Camera
+from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -24,6 +24,8 @@ async def async_setup_entry(
 
 class ScryptedCamera(ScryptedBaseEntity, Camera):
     """A camera entity exposing a Scrypted stream destination."""
+
+    _attr_supported_features = CameraEntityFeature.STREAM
 
     def __init__(self, *args, **kwargs) -> None:
         ScryptedBaseEntity.__init__(self, *args, **kwargs)
