@@ -22,7 +22,6 @@ class ScryptedBaseEntity(Entity):
         cmp_config: dict,
         entity_manager,
     ) -> None:
-        super().__init__()
         self._entry_id = entry_id
         self._device_id = device_id
         self._dev = dev

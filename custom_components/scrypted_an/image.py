@@ -32,8 +32,9 @@ class ScryptedImage(ScryptedBaseEntity, ImageEntity):
 
     _attr_content_type = "image/jpeg"
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, entry_id, device_id, dev, component_key, cmp_config, entity_manager) -> None:
+        ScryptedBaseEntity.__init__(self, entry_id, device_id, dev, component_key, cmp_config, entity_manager)
+        ImageEntity.__init__(self, entity_manager.hass)
         self._image_bytes: bytes | None = None
         self._image_last_updated: datetime | None = None
 
