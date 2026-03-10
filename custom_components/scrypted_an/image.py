@@ -1,6 +1,7 @@
 """Image platform for Scrypted Advanced Notifier."""
 from __future__ import annotations
 
+import base64
 from datetime import datetime
 import logging
 
@@ -24,25 +25,37 @@ async def async_setup_entry(
 
 
 class ScryptedImage(ScryptedBaseEntity, ImageEntity):
-    """An image entity from Scrypted (shows last detection snapshot)."""
+    """An image entity from Scrypted (shows last detection snapshot).
+
+    Scrypted publishes base64-encoded JPEG data to the image_topic.
+    """
 
     _attr_content_type = "image/jpeg"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._image_url: str | None = None
+        self._image_bytes: bytes | None = None
         self._image_last_updated: datetime | None = None
 
-    @property
-    def image_url(self) -> str | None:
-        return self._image_url
+        # Images are published to image_topic (not state_topic)
+        image_topic: str | None = self._cmp_config.get("image_topic")
+        if image_topic:
+            self._entity_manager.subscribe_topic(image_topic, self._on_image_update)
 
     @property
     def image_last_updated(self) -> datetime | None:
         return self._image_last_updated
 
-    def _on_state_update(self, value: str) -> None:
-        """State update carries the image URL."""
-        self._image_url = value if value else None
-        self._image_last_updated = dt_util.utcnow()
-        self.schedule_update_ha_state()
+    async def async_image(self) -> bytes | None:
+        return self._image_bytes
+
+    def _on_image_update(self, value: str) -> None:
+        """State update carries base64-encoded JPEG image data."""
+        if not value:
+            return
+        try:
+            self._image_bytes = base64.b64decode(value)
+            self._image_last_updated = dt_util.utcnow()
+            self.schedule_update_ha_state()
+        except Exception as e:
+            _LOGGER.debug("Failed to decode image data: %s", e)

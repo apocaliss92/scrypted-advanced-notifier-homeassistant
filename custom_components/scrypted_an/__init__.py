@@ -34,18 +34,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manager = EntityManager(hass, entry.entry_id)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = manager
 
-    # Fetch initial entity list and set up platforms
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Store connection info for command sending
+    hass.data[DOMAIN][f"{entry.entry_id}_conn"] = {
+        "scrypted_url": scrypted_url,
+        "ha_secret": ha_secret,
+    }
 
-    devices = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
-    for device in devices:
-        manager.apply_entity_diff(
-            device_id=device["device_id"],
-            cmps=device.get("cmps"),
-            dev=device.get("dev"),
-        )
-
-    # Listen for custom HA events fired by Scrypted plugin via fire_event on HA WebSocket
+    # Register bus listeners BEFORE fetching entities to avoid missing early push events
     async def _on_state_update(event: Event) -> None:
         topic = event.data.get("topic", "")
         value = event.data.get("value", "")
@@ -59,14 +54,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     unsub_state = hass.bus.async_listen(HA_EVENT_STATE_UPDATE, _on_state_update)
     unsub_entity = hass.bus.async_listen(HA_EVENT_ENTITY_CHANGE, _on_entity_change)
-
     hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity]
 
-    # Store connection info for command sending
-    hass.data[DOMAIN][f"{entry.entry_id}_conn"] = {
-        "scrypted_url": scrypted_url,
-        "ha_secret": ha_secret,
-    }
+    # Set up platforms, then trigger Scrypted re-discovery by calling /public/ha/entities
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
 
     return True
 
