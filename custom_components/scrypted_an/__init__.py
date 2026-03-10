@@ -45,9 +45,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register bus listeners BEFORE fetching entities to avoid missing early push events
     selected_set = set(selected_ids)
 
+    state_update_count: dict[str, int] = {"count": 0}
+
     async def _on_state_update(event: Event) -> None:
         topic = event.data.get("topic", "")
         value = event.data.get("value", "")
+        state_update_count["count"] += 1
+        if state_update_count["count"] <= 10:
+            _LOGGER.warning("state_update #%d: topic=%s value=%s", state_update_count["count"], topic, value[:100] if value else "")
         manager.update_state(topic, value)
 
     # Debounce entity_change events: collect device IDs for 2s then batch-fetch
@@ -73,6 +78,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _on_entity_change(event: Event) -> None:
         device_id = event.data.get("device_id", "")
+        _LOGGER.warning("entity_change received: device_id=%s (selected=%s)", device_id, device_id in selected_set if selected_set else "no filter")
         # Only process entity changes for devices we have selected
         if selected_set and device_id not in selected_set:
             return
@@ -102,8 +108,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     async def _on_heartbeat(event: Event) -> None:
+        _LOGGER.warning("Heartbeat received (available=%s)", manager.available)
         if not manager.available:
-            _LOGGER.info("Heartbeat received — marking all entities available")
+            _LOGGER.warning("Heartbeat received — marking all entities available")
             manager.set_available(True)
         _reset_heartbeat_timeout()
 
