@@ -9,7 +9,7 @@
           "ha_secret": "HA Secret"
         },
         "data_description": {
-          "scrypted_url": "Base URL of your Scrypted instance, e.g. http://scrypted.local:11080"
+          "scrypted_url": "Base URL of your Scrypted instance, including port (e.g. port 11080)"
         }
       },
       "select_devices": {
