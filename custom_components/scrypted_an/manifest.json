@@ -6,6 +6,7 @@
   ],
   "config_flow": true,
   "dependencies": [
+    "http",
     "stream"
   ],
   "documentation": "https://github.com/apocaliss92/scrypted-advanced-notifier",
