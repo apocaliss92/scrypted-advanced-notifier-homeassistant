@@ -42,3 +42,12 @@ class ScryptedSensor(ScryptedBaseEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self) -> str | None:
         return self._cmp_config.get("unit_of_meas") or self._cmp_config.get("unit_of_measurement")
+
+    @property
+    def state_class(self) -> str | None:
+        return self._cmp_config.get("stat_cla") or self._cmp_config.get("state_class")
+
+    @property
+    def suggested_display_precision(self) -> int | None:
+        val = self._cmp_config.get("suggested_display_precision")
+        return int(val) if val is not None else None

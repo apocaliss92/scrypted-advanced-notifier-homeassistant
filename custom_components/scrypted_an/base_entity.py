@@ -1,10 +1,16 @@
 """Base entity class for Scrypted Advanced Notifier entities."""
 from __future__ import annotations
 
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
+
+_ENTITY_CATEGORY_MAP = {
+    "config": EntityCategory.CONFIG,
+    "diagnostic": EntityCategory.DIAGNOSTIC,
+}
 
 
 class ScryptedBaseEntity(Entity):
@@ -48,6 +54,22 @@ class ScryptedBaseEntity(Entity):
             manufacturer=self._dev.get("mf", "Scrypted"),
             model=self._dev.get("mdl", "Advanced Notifier"),
         )
+
+    @property
+    def icon(self) -> str | None:
+        return self._cmp_config.get("icon")
+
+    @property
+    def entity_category(self) -> EntityCategory | None:
+        raw = self._cmp_config.get("entity_category")
+        return _ENTITY_CATEGORY_MAP.get(raw) if raw else None
+
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        val = self._cmp_config.get("enabled_by_default")
+        if val is None:
+            return True
+        return bool(val)
 
     @property
     def available(self) -> bool:
