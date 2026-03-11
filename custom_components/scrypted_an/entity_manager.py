@@ -24,6 +24,8 @@ class EntityManager:
         self._platform_callbacks: dict[str, AddEntitiesCallback] = {}
         # State subscribers: topic → list[callback]
         self._state_subscribers: dict[str, list] = {}
+        # State buffer: topic → last value (delivers to late subscribers)
+        self._state_buffer: dict[str, str] = {}
         # Plugin connectivity
         self._available = True
 
@@ -46,6 +48,7 @@ class EntityManager:
 
     def update_state(self, topic: str, value: str) -> None:
         """Apply a state_update message: find entities subscribed to this topic."""
+        self._state_buffer[topic] = value
         for cb in self._state_subscribers.get(topic, []):
             try:
                 cb(value)
@@ -54,6 +57,13 @@ class EntityManager:
 
     def subscribe_topic(self, topic: str, callback) -> None:
         self._state_subscribers.setdefault(topic, []).append(callback)
+        # Deliver buffered value immediately if available
+        buffered = self._state_buffer.get(topic)
+        if buffered is not None:
+            try:
+                callback(buffered)
+            except Exception as e:
+                _LOGGER.warning("Error delivering buffered state for topic %s: %s", topic, e)
 
     def get_device_ids(self) -> list[str]:
         """Return the list of device IDs that currently have entities."""

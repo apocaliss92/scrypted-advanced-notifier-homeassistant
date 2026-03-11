@@ -81,7 +81,10 @@ class ScryptedBaseEntity(Entity):
 
     def _on_state_update(self, value: str) -> None:
         self._state_value = value
-        self.schedule_update_ha_state()
+        # Entity may not be added to HA yet — skip state write in that case.
+        # HA will read the correct value from native_value when it adds the entity.
+        if self.hass is not None:
+            self.schedule_update_ha_state()
 
     def update_config(self, new_config: dict) -> None:
         """Called when the entity config changes (e.g. select options change)."""
