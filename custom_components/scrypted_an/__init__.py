@@ -21,6 +21,7 @@ from .const import (
     HEARTBEAT_TIMEOUT_S,
 )
 from .entity_manager import EntityManager
+from .push_view import ScryptedPushView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +36,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     manager = EntityManager(hass, entry.entry_id)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = manager
+
+    # Register push view (once per HA instance, not per config entry)
+    if "push_view_registered" not in hass.data[DOMAIN]:
+        hass.http.register_view(ScryptedPushView())
+        hass.data[DOMAIN]["push_view_registered"] = True
+        _LOGGER.info("Registered push endpoint at /api/scrypted_an/push")
 
     # Store connection info for command sending
     hass.data[DOMAIN][f"{entry.entry_id}_conn"] = {

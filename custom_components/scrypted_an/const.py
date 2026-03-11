@@ -21,3 +21,6 @@ ENDPOINT_HA_ENTITIES = f"{ENDPOINT_BASE}/public/ha/entities"
 ENDPOINT_HA_COMMAND = f"{ENDPOINT_BASE}/public/ha/command"
 ENDPOINT_HA_IMAGE = f"{ENDPOINT_BASE}/public/ha/image"
 ENDPOINT_HA_SNAPSHOT = f"{ENDPOINT_BASE}/public/ha/snapshot"
+
+# Push endpoint: plugin POSTs state updates here instead of using WS fire_event
+PUSH_API_PATH = "/api/scrypted_an/push"

@@ -155,7 +155,7 @@ class ScryptedAnConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class ScryptedAnOptionsFlow(config_entries.OptionsFlow):
-    """Handle options for Scrypted Advanced Notifier (add/remove devices)."""
+    """Handle options for Scrypted Advanced Notifier."""
 
     def __init__(self) -> None:
         self._available_devices: list[dict] = []
@@ -164,6 +164,13 @@ class ScryptedAnOptionsFlow(config_entries.OptionsFlow):
         return str(self.hass.config.external_url or self.hass.config.internal_url or "")
 
     async def async_step_init(self, user_input: dict | None = None) -> FlowResult:
+        """Show menu: manage devices or update secret."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["manage_devices", "update_secret"],
+        )
+
+    async def async_step_manage_devices(self, user_input: dict | None = None) -> FlowResult:
         """Show device multi-select pre-populated with current selection."""
         errors: dict[str, str] = {}
         data = self.config_entry.data
@@ -194,7 +201,40 @@ class ScryptedAnOptionsFlow(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
-            step_id="init",
+            step_id="manage_devices",
             data_schema=_build_select_schema(self._available_devices, current_selection),
+            errors=errors,
+        )
+
+    async def async_step_update_secret(self, user_input: dict | None = None) -> FlowResult:
+        """Allow user to update the HA secret."""
+        errors: dict[str, str] = {}
+        data = self.config_entry.data
+        current_secret = data.get(CONF_HA_SECRET, "")
+
+        if user_input is not None:
+            new_secret = user_input.get(CONF_HA_SECRET, "").strip()
+            if not new_secret:
+                errors[CONF_HA_SECRET] = "empty_secret"
+            else:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={**data, CONF_HA_SECRET: new_secret},
+                )
+                # Update cached connection info
+                conn_key = f"{self.config_entry.entry_id}_conn"
+                conn = self.hass.data.get(DOMAIN, {}).get(conn_key)
+                if isinstance(conn, dict):
+                    conn["ha_secret"] = new_secret
+                _LOGGER.info("HA secret updated via options flow")
+                return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="update_secret",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HA_SECRET, default=current_secret): str,
+                }
+            ),
             errors=errors,
         )

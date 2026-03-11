@@ -33,10 +33,25 @@
   "options": {
     "step": {
       "init": {
+        "title": "Scrypted Advanced Notifier",
+        "description": "Choose what you want to configure.",
+        "menu_options": {
+          "manage_devices": "Manage devices",
+          "update_secret": "Update HA Secret"
+        }
+      },
+      "manage_devices": {
         "title": "Manage devices",
         "description": "Add or remove Scrypted devices imported into Home Assistant.",
         "data": {
           "selected_device_ids": "Devices"
+        }
+      },
+      "update_secret": {
+        "title": "Update HA Secret",
+        "description": "Update the shared secret used for communication with the Scrypted plugin. Copy the new value from the plugin settings.",
+        "data": {
+          "ha_secret": "HA Secret"
         }
       }
     },
@@ -44,7 +59,8 @@
       "cannot_connect": "Cannot connect to Scrypted. The current device list is shown as fallback.",
       "invalid_secret": "Invalid HA Secret.",
       "origin_not_allowed": "This Home Assistant URL is not in the plugin's allowed origins.",
-      "no_devices_selected": "Select at least one device."
+      "no_devices_selected": "Select at least one device.",
+      "empty_secret": "Secret cannot be empty."
     }
   }
 }
