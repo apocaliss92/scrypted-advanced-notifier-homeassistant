@@ -135,6 +135,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.warning("Fetching entities for selected IDs: %s", selected_ids)
     devices, states = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
     _LOGGER.warning("Fetched %d devices and %d initial states", len(devices), len(states))
+    # Check for selected devices that were not returned by the plugin (likely not enabled for HA)
+    if selected_ids:
+        returned_ids = {d.get("device_id", "") for d in devices}
+        for sid in selected_ids:
+            if sid not in returned_ids:
+                _LOGGER.warning(
+                    'Device "%s" is selected in HA but was not returned by the plugin. '
+                    'It may not have "HA integration" enabled in the Advanced Notifier device settings. '
+                    'Entities for this device will not be created.',
+                    sid,
+                )
     for device in devices:
         device_id = device.get("device_id", "")
         cmps = device.get("cmps", {})
