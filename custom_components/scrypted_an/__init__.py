@@ -258,7 +258,17 @@ async def _send_command_to_plugin(
             async with session.post(
                 url, json={"topic": topic, "value": value}, headers=headers, timeout=aiohttp.ClientTimeout(total=10), ssl=False
             ) as resp:
-                if resp.status != 200:
+                if resp.status == 422:
+                    try:
+                        err_body = await resp.json()
+                        err_msg = err_body.get("error", "unknown")
+                    except Exception:
+                        err_msg = await resp.text()
+                    _LOGGER.error(
+                        "Command rejected by plugin (HTTP 422): topic=%s value=%s — %s",
+                        topic, value, err_msg,
+                    )
+                elif resp.status != 200:
                     _LOGGER.warning("Command POST failed: HTTP %s", resp.status)
                 else:
                     _LOGGER.info("Command POST success: topic=%s value=%s", topic, value)
