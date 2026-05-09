@@ -124,8 +124,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unsub_state = hass.bus.async_listen(HA_EVENT_STATE_UPDATE, _on_state_update)
     unsub_entity = hass.bus.async_listen(HA_EVENT_ENTITY_CHANGE, _on_entity_change)
     unsub_heartbeat = hass.bus.async_listen(HA_EVENT_HEARTBEAT, _on_heartbeat)
-    hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity, unsub_heartbeat]
-    _LOGGER.warning("Bus listeners registered for events: %s, %s, %s. Selected devices: %s",
+    from .action_listener import async_setup_action_listener
+    unsub_action = async_setup_action_listener(hass, entry.entry_id)
+    hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity, unsub_heartbeat, unsub_action]
+    _LOGGER.warning("Bus listeners registered for events: %s, %s, %s, mobile_app_notification_action. Selected devices: %s",
                     HA_EVENT_STATE_UPDATE, HA_EVENT_ENTITY_CHANGE, HA_EVENT_HEARTBEAT, selected_ids)
     # Start heartbeat timeout — if no heartbeat arrives within timeout, entities go unavailable
     _reset_heartbeat_timeout()
