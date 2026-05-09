@@ -1,6 +1,6 @@
 {
   "name": "scrypted-advanced-notifier-homeassistant",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "private": true,
   "scripts": {
     "version:sync": "node scripts/sync-version.js",
