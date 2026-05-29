@@ -66,7 +66,11 @@ def _build_select_schema(
         SelectOptionDict(value=d["device_id"], label=d["device_name"])
         for d in available_devices
     ]
-    default = current_selection or vol.UNDEFINED
+    available_ids = {d["device_id"] for d in available_devices}
+    # Filter out stale ids that are no longer offered as options, otherwise
+    # SelectSelector rejects the default with "value must be one of [...]".
+    valid_selection = [sid for sid in (current_selection or []) if sid in available_ids]
+    default = valid_selection or vol.UNDEFINED
     return vol.Schema(
         {
             vol.Required(CONF_SELECTED_DEVICE_IDS, default=default): SelectSelector(
