@@ -1,0 +1,52 @@
+# Caddy config for the docs site (see ../Dockerfile.docs).
+#
+# TLS is terminated by the platform edge (Railway), so Caddy serves plain HTTP on
+# $PORT and does not provision a certificate — hence `auto_https off` and a port
+# site address rather than a hostname.
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	root * /srv/site
+
+	# Access control is written by `docs-entrypoint.sh` at container start, into
+	# either an empty file (public) or a basic_auth block. It is NOT inlined here
+	# with placeholder defaults: an invalid password hash makes Caddy fail at
+	# provision time rather than fall back to public, so "unset" would mean "the
+	# service does not boot" instead of "the service is open".
+	import /etc/caddy/access.conf
+
+	# Unauthenticated so a platform health check needs no credentials. Declared
+	# before the catch-all file server, and excluded from auth in access.conf.
+	handle /_health {
+		respond "ok" 200
+	}
+
+	file_server
+	encode gzip
+
+	# MkDocs emits a real 404.html — serve it instead of Caddy's bare response.
+	handle_errors {
+		@404 expression {err.status_code} == 404
+		rewrite @404 /404.html
+		file_server
+	}
+
+	# `use_directory_urls: true` gives stable directory URLs for pages, so HTML is
+	# revalidated every time while fingerprinted assets are cached hard.
+	#
+	# The two matchers must be mutually exclusive. A blanket `header Cache-Control`
+	# alongside a matched one does NOT act as a fallback — it runs too and
+	# overwrites, so assets silently got the must-revalidate value.
+	@assets path /assets/*
+	@pages not path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header @pages Cache-Control "public, max-age=0, must-revalidate"
+
+	log {
+		output stdout
+		format console
+	}
+}

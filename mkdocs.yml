@@ -1,0 +1,54 @@
+# MkDocs Material config for the integration docs.
+#
+# Purpose: make `docs/` readable on a phone without a checkout. It is a VIEW over
+# the repository, never a second place to edit — the sources of truth stay
+# `README.md` (rendered by HACS) and the code itself.
+#
+#   pip install mkdocs-material
+#   mkdocs serve          # http://127.0.0.1:8000
+#   mkdocs build          # → site/
+#
+# There is deliberately NO `nav:` block. MkDocs derives navigation from the
+# directory tree, so a new page appears without anyone editing this file.
+site_name: Scrypted Advanced Notifier — Home Assistant
+site_description: Installation, configuration and architecture of the Scrypted Advanced Notifier custom integration
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    # Mobile-first: instant navigation + a real search overlay are what make this
+    # usable on a phone.
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight: { anchor_linenums: true }
+  - pymdownx.tasklist: { custom_checkbox: true }
+
+plugins:
+  - search
+
+extra:
+  generator: false

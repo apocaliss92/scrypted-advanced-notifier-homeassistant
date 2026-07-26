@@ -1,1 +1,7 @@
 log.txt
+
+# MkDocs build output (mkdocs.yml → site_dir)
+site/
+
+# Local venv for mkdocs-material
+.venv/
