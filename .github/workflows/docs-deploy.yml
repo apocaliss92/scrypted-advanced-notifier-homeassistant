@@ -1,15 +1,19 @@
-# Builds the docs site and, when configured, deploys it to its Railway service.
+# Builds the public documentation site (docs/ — Next.js + fumadocs) and, when
+# configured, deploys it to its Railway service.
 #
-# Two jobs on purpose:
-#   build   always runs — `mkdocs build --strict`, so a broken internal link fails
-#           against the commit that caused it, and uploads the site as an artifact
-#           so it is downloadable even with no host configured
-#   deploy  needs build; skips with a notice when the Railway secret is absent,
-#           because a red X on every docs commit before setup is just noise
+# Three jobs on purpose:
+#   check   the drift guard. Regenerates the DO-NOT-EDIT reference pages and fails
+#           if what is committed differs, then verifies every path, constant and
+#           class the prose pages cite still exists. Runs first so a docs lie
+#           fails against the commit that caused it.
+#   build   `next build`, so a broken page fails here rather than on the host.
+#   deploy  needs both; skips with a notice when Railway is not configured yet,
+#           because a red X on every docs commit before setup is just noise.
 #
-# Path-filtered: integration code changes far more often than the docs, and
-# redeploying the docs on every code commit is pure churn. (`release.yml` is the
-# workflow that reacts to code — this one never touches versions or tags.)
+# The path filter includes `custom_components/**` deliberately: a code change can
+# change the generated reference, so a code change must be able to redeploy the
+# docs — and must fail `check` if the generated pages were not regenerated.
+# (`release.yml` is the workflow that versions and tags; this one never does.)
 #
 # ── What you set on GitHub ───────────────────────────────────────────────────
 #   Settings → Secrets and variables → Actions
@@ -21,19 +25,16 @@
 # Nothing in this file needs editing — that is why they are vars and secrets.
 #
 # ── What you set on the Railway SERVICE ──────────────────────────────────────
-#   RAILWAY_DOCKERFILE_PATH=Dockerfile.docs
-#   DOCS_PUBLIC=true   (or DOCS_USER + DOCS_PASSWORD_HASH)
-#
-# The container refuses to start without an access decision — docs/hosting.md.
+# Nothing. The deploy step uploads the `docs/` directory as the build context and
+# `docs/Dockerfile` sits at the root of it, so no RAILWAY_DOCKERFILE_PATH and no
+# root-directory setting are needed. Railway injects PORT; the image honours it.
 #
 # ── The simpler alternative ──────────────────────────────────────────────────
 # Railway's native GitHub integration auto-deploys on push with no workflow and no
-# token, and service-level *watch paths* do the same filtering:
-#
-#   docs/**, mkdocs.yml, Dockerfile.docs, Dockerfile.docs.dockerignore, docker/docs.*
-#
-# If you use that, delete the `deploy` job below and keep `build`. Two mechanisms
-# deploying one service is how you end up debugging which of them shipped.
+# token; service-level *watch paths* do the same filtering and the service root
+# directory must then be set to `docs`. If you use that, delete the `deploy` job
+# and keep `check` + `build`. Two mechanisms deploying one service is how you end
+# up debugging which of them shipped.
 name: Docs
 
 on:
@@ -42,11 +43,10 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - "mkdocs.yml"
-      - "Dockerfile.docs"
-      - "Dockerfile.docs.dockerignore"
-      - "docker/docs.Caddyfile"
-      - "docker/docs-entrypoint.sh"
+      - "custom_components/**"
+      - "scripts/docs_*.py"
+      - "hacs.json"
+      - "VERSION"
       - ".github/workflows/docs-deploy.yml"
 
 permissions:
@@ -57,15 +57,11 @@ concurrency:
   group: docs
   cancel-in-progress: true
 
-env:
-  # Pinned to match Dockerfile.docs, so CI and the deployed image render the same
-  # site. Bump both together.
-  MKDOCS_MATERIAL_VERSION: "9.5.49"
-
 jobs:
-  build:
+  check:
+    name: Drift guard
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -73,19 +69,36 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build site
-        run: |
-          pip install --quiet "mkdocs-material==${MKDOCS_MATERIAL_VERSION}"
-          mkdocs build --strict
+      # Both scripts are standard-library only — no pip install, no lockfile.
+      - name: Generated pages match the source
+        run: python3 scripts/docs_generate.py --check
 
-      - uses: actions/upload-artifact@v4
+      - name: Every cited path and identifier still exists
+        run: python3 scripts/docs_check_refs.py --verbose
+
+  build:
+    name: Build site
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          name: scrypted-an-docs-site
-          path: site/
-          retention-days: 30
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
 
   deploy:
-    needs: build
+    needs: [check, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -112,10 +125,11 @@ jobs:
             echo "::error::Cannot deploy. Missing:$missing — see the header of this workflow."
             exit 1
           fi
-          echo "::notice::Railway not configured yet (missing:$missing) — built only, not deployed."
+          echo "::notice::Railway not configured yet (missing:$missing) — checked and built only, not deployed."
 
       - name: Deploy
         if: steps.config.outputs.ready == 'true'
+        working-directory: docs
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
