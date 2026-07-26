@@ -62,7 +62,27 @@ All code comments, docstrings, commit messages, and PR descriptions must be in *
 
 ### Supported platforms
 
-`binary_sensor`, `sensor`, `switch`, `button`, `select`, `image`, `camera`
+Do not maintain the list here. `PLATFORMS` in `__init__.py` and the `build_entity()`
+factory are the source of truth, and `docs/content/docs/reference/entities.mdx` is
+generated from both. (The list that used to sit here had already lost
+`alarm_control_panel`.)
+
+## Documentation site (`docs/`)
+
+Public docs — Next.js + fumadocs, deployed to Railway by
+`.github/workflows/docs-deploy.yml`. The rule that keeps it current:
+
+> Anything derivable from the repository is **generated**; anything else is prose
+> whose every citation is checked.
+
+- `docs/content/docs/reference/*.mdx` are **generated — never edit them by hand.**
+  `scripts/docs_generate.py` writes them by parsing the real source with `ast`.
+- `npm run docs:generate` after changing constants, the config flow, `PLATFORMS`,
+  the manifest or the version. `npm run docs:check` is the CI guard: it fails on a
+  stale generated page and on any prose page citing a file, constant or class that
+  no longer exists.
+- Prose pages (`index`, `installation`, `architecture`, `development`, `hosting`)
+  are hand-written and mirror this file and `README.md`; change those first.
 
 ### REST endpoint paths (on Scrypted plugin)
 

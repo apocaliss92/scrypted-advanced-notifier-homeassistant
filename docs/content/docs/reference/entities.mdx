@@ -1,0 +1,68 @@
+---
+title: Entity platforms
+description: Which Home Assistant platforms the integration sets up, which entity class serves each, and the component-config keys they read.
+icon: LayoutGrid
+---
+
+{/* GENERATED FILE — DO NOT EDIT BY HAND.
+    Source: custom_components/scrypted_an/__init__.py, custom_components/scrypted_an/base_entity.py
+    Regenerate: npm run docs:generate
+    Guard: npm run docs:check (scripts/docs_generate.py --check) */}
+
+Two independent facts have to line up: `PLATFORMS` in `__init__.py` decides what Home Assistant forwards the config entry to, and the `build_entity()` factory decides which class a component payload becomes. A platform in one but not the other is a bug, so both columns are shown.
+
+## Platforms
+
+| Platform | Entity class | Module | In `PLATFORMS` |
+| --- | --- | --- | --- |
+| `alarm_control_panel` | `ScryptedAlarmControlPanel` | `custom_components/scrypted_an/alarm_control_panel.py` | yes |
+| `binary_sensor` | `ScryptedBinarySensor` | `custom_components/scrypted_an/binary_sensor.py` | yes |
+| `sensor` | `ScryptedSensor` | `custom_components/scrypted_an/sensor.py` | yes |
+| `switch` | `ScryptedSwitch` | `custom_components/scrypted_an/switch.py` | yes |
+| `button` | `ScryptedButton` | `custom_components/scrypted_an/button.py` | yes |
+| `select` | `ScryptedSelect` | `custom_components/scrypted_an/select.py` | yes |
+| `image` | `ScryptedImage` | `custom_components/scrypted_an/image.py` | yes |
+| `camera` | `ScryptedCamera` | `custom_components/scrypted_an/camera.py` | yes |
+
+
+`PLATFORMS` declares 8; the factory builds 8.
+
+## Component-config keys
+
+The plugin sends each entity an MQTT-autodiscovery-shaped `cmps` payload. These are the keys the integration actually reads out of it.
+
+### Read by every entity
+
+| Key |
+| --- |
+| `enabled_by_default` |
+| `entity_category` |
+| `icon` |
+| `name` |
+| `stat_t` |
+| `state_topic` |
+
+
+### Read per platform
+
+| Platform | Additional keys |
+| --- | --- |
+| `alarm_control_panel` | `cmd_t`, `command_topic`, `payload_arm_away`, `payload_arm_home`, `payload_arm_night`, `payload_disarm`, `payload_trigger`, `supported_features` |
+| `binary_sensor` | `dev_cla`, `device_class` |
+| `sensor` | `dev_cla`, `device_class`, `stat_cla`, `state_class`, `suggested_display_precision`, `unit_of_meas`, `unit_of_measurement` |
+| `switch` | `cmd_t`, `command_topic` |
+| `button` | `cmd_t`, `command_topic` |
+| `select` | `cmd_t`, `command_topic`, `options` |
+| `image` | `image_topic` |
+| `camera` | `rtsp_url`, `stream_source` |
+
+
+## Entity categories
+
+Values accepted in the payload's `entity_category` key, from `_ENTITY_CATEGORY_MAP` in `base_entity.py`. Anything else leaves the entity uncategorised.
+
+| Value |
+| --- |
+| `config` |
+| `diagnostic` |
+

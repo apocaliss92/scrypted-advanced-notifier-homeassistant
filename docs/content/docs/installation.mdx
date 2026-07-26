@@ -1,0 +1,38 @@
+---
+title: Installation
+description: Install the Scrypted Advanced Notifier integration through HACS and complete the Home Assistant config flow.
+icon: Download
+---
+
+Migrated from the repository `README.md`, which HACS renders and which stays the
+canonical copy. Change it there first.
+
+## Installation via HACS
+
+1. Add this repository as a custom HACS integration
+2. Install **Scrypted Advanced Notifier**
+3. Restart Home Assistant
+4. Go to **Settings → Integrations → Add Integration** and search for *Scrypted Advanced Notifier*
+
+## Configuration
+
+1. Enter your Scrypted URL (e.g. `http://scrypted.local:11080`)
+2. Enter the HA Secret from the Advanced Notifier plugin settings
+3. Select which cameras to import
+
+Every field, its default and every error the flow can show are listed on
+[Configuration reference](/docs/reference/configuration), generated from
+`custom_components/scrypted_an/config_flow.py` and
+`custom_components/scrypted_an/strings.json`.
+
+## Requirements
+
+- [Scrypted](https://scrypted.app/) with the Advanced Notifier plugin installed
+- A minimum Home Assistant version, declared in `hacs.json` and listed on
+  [Integration reference](/docs/reference/integration)
+
+## Supported platforms
+
+See [Entity platforms](/docs/reference/entities) — the list is generated from
+`PLATFORMS` and the entity factory in `custom_components/scrypted_an/__init__.py`,
+so it cannot fall behind the code.

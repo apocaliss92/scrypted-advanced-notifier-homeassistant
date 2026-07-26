@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "index",
+    "installation",
+    "architecture",
+    "---Reference---",
+    "reference",
+    "---Contributing---",
+    "development",
+    "hosting"
+  ]
+}

@@ -1,0 +1,96 @@
+---
+title: Hosting
+description: How this documentation site is built, containerised and deployed to Railway.
+icon: Rocket
+---
+
+This site is a [fumadocs](https://fumadocs.dev/) app on Next.js, living in the
+`docs/` directory of the integration repository. It is **public** — there is no
+authentication layer, by design: these are the official docs and they are meant to
+be indexed.
+
+## Layout
+
+| Path | What it is |
+| --- | --- |
+| `docs/content/docs/` | The MDX pages. `reference/` is generated — see below. |
+| `docs/app/` | Next.js app router: the landing page, the docs layout, the search route. |
+| `docs/lib/source.ts` | The fumadocs loader that turns `content/docs` into a page tree. |
+| `docs/Dockerfile` | Single-stage `node:22-alpine`; `npx fumadocs-mdx` then `npm run build`, served by `npm run start`. |
+| `docs/.dockerignore` | Keeps `node_modules`, `.next` and `.source` out of the build context. |
+| `scripts/docs_generate.py` | Writes the generated reference pages from the integration source. |
+| `scripts/docs_check_refs.py` | Fails when a page cites a file, constant or class that no longer exists. |
+
+## Running it locally
+
+```bash
+npm run docs:generate    # refresh the generated reference pages
+npm run docs:check       # drift guard + reference checker
+npm --prefix docs install
+npm run docs:dev         # http://localhost:3000
+npm run docs:build       # production build
+```
+
+`npm run docs:generate` and `npm run docs:check` need only Python 3 — they use the
+standard library `ast` module and have no dependencies.
+
+## Container behaviour
+
+| Aspect | Behaviour |
+| --- | --- |
+| Port | Reads `$PORT`. Railway injects it; the image defaults to `8080`. |
+| Host | `HOSTNAME=0.0.0.0`, so the server is reachable from outside the container. |
+| Build context | The `docs/` directory only. The generated pages are committed, so the container never needs the Python source. |
+| TLS | Terminated by the platform. The Node server speaks plain HTTP. |
+
+Build and run it by hand:
+
+```bash
+docker build -t scrypted-an-docs docs
+docker run --rm -p 8080:8080 scrypted-an-docs
+```
+
+## Deploying to Railway
+
+The workflow `.github/workflows/docs-deploy.yml` runs the guard, builds the site,
+and then uploads `docs/` to a Railway service with the Railway CLI. It is
+parameterised entirely by GitHub vars and secrets, so nothing in the file needs
+editing per environment.
+
+Repository → **Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Contains |
+| --- | --- | --- |
+| Secret | `RAILWAY_TOKEN` | A Railway project token (Project → Settings → Tokens) or an account token. |
+| Variable | `RAILWAY_DOCS_SERVICE` | The Railway **service name**, e.g. `docs`. Passed to `railway up --service`. |
+| Variable | `RAILWAY_DOCS_ENVIRONMENT` | *Optional.* Environment name; defaults to `production`. |
+
+On the Railway service itself: **nothing**. The deploy step uploads `docs/` as the
+build context and `Dockerfile` sits at the root of it, so no
+`RAILWAY_DOCKERFILE_PATH` and no root-directory setting are needed. `PORT` is
+injected by Railway — do not set it.
+
+Until both `RAILWAY_TOKEN` and `RAILWAY_DOCS_SERVICE` exist, a push builds and
+checks but does not deploy, and says so with a workflow notice. A manual
+`workflow_dispatch` fails loudly instead, because someone explicitly asked for a
+deploy.
+
+## The simpler alternative
+
+Railway's native GitHub integration auto-deploys on push with no workflow and no
+token, and service-level *watch paths* do the same filtering:
+
+```
+docs/**, custom_components/**, scripts/docs_*.py
+```
+
+With that you must set the service's **root directory** to `docs`. If you pick it,
+delete the `deploy` job from the workflow and keep `check` and `build` — two
+mechanisms deploying one service is how you end up debugging which of them
+shipped.
+
+## Custom domain
+
+Add it on the Railway service. Railway terminates TLS; the Node server stays on
+plain HTTP. Once the domain is live, point `manifest.json`'s `documentation` field
+at it.

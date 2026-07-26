@@ -7,7 +7,10 @@
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major",
-    "docs:site": "mkdocs serve",
-    "docs:site:build": "mkdocs build --strict"
+    "docs:generate": "python3 scripts/docs_generate.py",
+    "docs:check": "python3 scripts/docs_generate.py --check && python3 scripts/docs_check_refs.py",
+    "docs:install": "npm --prefix docs install",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build"
   }
 }

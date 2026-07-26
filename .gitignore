@@ -1,7 +1,11 @@
 log.txt
 
-# MkDocs build output (mkdocs.yml → site_dir)
-site/
+# Docs site (docs/ — Next.js + fumadocs)
+docs/node_modules/
+docs/.next/
+docs/out/
+docs/.source/
+docs/next-env.d.ts
 
-# Local venv for mkdocs-material
-.venv/
+# Python bytecode from the docs generator/guard
+__pycache__/

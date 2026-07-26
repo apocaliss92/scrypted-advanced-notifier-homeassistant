@@ -1,0 +1,49 @@
+---
+title: Overview
+description: Official documentation for the Home Assistant custom integration that connects to the Scrypted Advanced Notifier plugin.
+icon: House
+---
+
+Custom integration for [Home Assistant](https://www.home-assistant.io/) that
+connects to the [Scrypted Advanced Notifier](https://github.com/apocaliss92/scrypted-advanced-notifier)
+plugin.
+
+These pages are a **view** over this repository. Nothing is authored here that is
+not also in the repo — `README.md` stays the file HACS renders, and the code stays
+the source of truth for behaviour.
+
+| Page | Start here if… |
+| --- | --- |
+| [Installation](/docs/installation) | you are installing or configuring the integration |
+| [Architecture](/docs/architecture) | you want to know how the integration talks to Scrypted |
+| [Reference](/docs/reference) | you want the exact fields, events and endpoints, generated from the code |
+| [Development](/docs/development) | you are changing the code, versions or the release pipeline |
+| [Hosting](/docs/hosting) | you are deploying this site |
+
+## What it does
+
+- Automatic entity discovery from Scrypted cameras
+- Real-time state updates pushed from the plugin into the Home Assistant event bus
+- Several entity platforms — the authoritative list is
+  [Entity platforms](/docs/reference/entities), generated from the code
+- Commands sent back to Scrypted via REST
+
+## How this site stays current
+
+Everything that can be read out of the repository is **generated** into
+[Reference](/docs/reference) by `scripts/docs_generate.py`, and a CI check
+(`scripts/docs_check_refs.py` plus `docs_generate.py --check`) fails the build
+when a generated page drifts from the source or when a page names a file,
+constant or class that no longer exists. Prose pages are hand-written; the facts
+under them are not.
+
+## Not yet written
+
+These are gaps, not omissions — the prose does not exist anywhere in the repo yet,
+and inventing it here would be worse than leaving the list visible:
+
+- [ ] Troubleshooting: what to check when entities never appear after setup
+- [ ] The action listener (`action_listener.py`) and mobile-app notification
+      actions, including snooze
+- [ ] Per-platform notes: which Scrypted concept maps to which HA entity
+- [ ] Upgrade notes between integration versions

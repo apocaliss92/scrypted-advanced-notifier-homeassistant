@@ -1,0 +1,24 @@
+---
+title: Reference
+description: Generated reference for the integration — metadata, configuration fields, entity platforms, events and endpoints.
+icon: BookMarked
+---
+
+Every page in this section is **generated** from the integration source by
+`scripts/docs_generate.py`. None of them is hand-written, and CI fails if any of
+them drifts from the code. If something here is wrong, the code is what changed.
+
+| Page | Generated from |
+| --- | --- |
+| [Integration](/docs/reference/integration) | `custom_components/scrypted_an/manifest.json`, `hacs.json`, `VERSION` |
+| [Configuration](/docs/reference/configuration) | `custom_components/scrypted_an/config_flow.py`, `custom_components/scrypted_an/strings.json` |
+| [Entity platforms](/docs/reference/entities) | `custom_components/scrypted_an/__init__.py`, `custom_components/scrypted_an/base_entity.py` |
+| [Protocol](/docs/reference/protocol) | `custom_components/scrypted_an/const.py`, `custom_components/scrypted_an/push_view.py`, `custom_components/scrypted_an/action_listener.py` |
+
+## Why generate at all
+
+A page a human retypes is a page that goes stale the first time someone forgets.
+The generator parses the real Python with the standard library `ast` module and
+reads the real JSON — it never regexes prose, and it never invents a value that is
+not in the tree. What cannot be derived stays prose, and
+`scripts/docs_check_refs.py` checks that the prose still names things that exist.

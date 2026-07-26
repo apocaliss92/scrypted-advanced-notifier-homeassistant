@@ -1,15 +1,26 @@
-# Architecture
+---
+title: Architecture
+description: How the Scrypted plugin pushes state into Home Assistant, how entities are built, and how commands travel back.
+icon: Network
+---
 
 Migrated from `CLAUDE.md`, which remains in the repository root as the guidance
 file agents read. Change it there first; this page mirrors it.
 
+The exact event names, endpoint paths and timeouts referenced below are listed on
+[Protocol reference](/docs/reference/protocol), generated from
+`custom_components/scrypted_an/const.py`.
+
 ## Communication model
 
-The Scrypted plugin connects **outbound** to HA's native WebSocket API
-(`/api/websocket`) and fires two custom HA events:
+The Scrypted plugin pushes into Home Assistant and Home Assistant answers over
+REST. Two custom HA bus events carry the traffic inbound:
 
 - `scrypted_an_state_update` — `{ topic, value }` — entity state change
 - `scrypted_an_entity_change` — `{ device_id, cmps, dev }` — entity structure change
+
+A third, `scrypted_an_heartbeat`, is a liveness signal: when none arrives within
+the heartbeat timeout every entity is marked unavailable.
 
 HA sends commands **back** to Scrypted via REST
 `POST {scrypted_url}/endpoint/@apocaliss92/scrypted-advanced-notifier/public/ha/command`
@@ -50,6 +61,14 @@ during `__init__`.
 names (`stat_t`, `cmd_t`, `stat_t`, etc.) since the plugin reuses that payload
 structure. Command-capable entities (`switch`, `button`, `select`) call
 `send_command(hass, entry_id, topic, value)` from `__init__.py`.
+
+## The push endpoint
+
+Rather than the plugin holding a WebSocket to HA and calling `fire_event` (which
+needs an admin token), `ScryptedPushView` in `push_view.py` exposes a POST
+endpoint on Home Assistant itself. The plugin POSTs state updates, entity changes
+and heartbeats there; the view authenticates them against the shared HA Secret and
+fires the corresponding bus events internally.
 
 ## REST endpoint paths (on the Scrypted plugin)
 

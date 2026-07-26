@@ -1,0 +1,95 @@
+---
+title: Configuration
+description: Every field, default and error message of the Home Assistant config flow and options flow.
+icon: SlidersHorizontal
+---
+
+{/* GENERATED FILE — DO NOT EDIT BY HAND.
+    Source: custom_components/scrypted_an/config_flow.py, custom_components/scrypted_an/strings.json
+    Regenerate: npm run docs:generate
+    Guard: npm run docs:check (scripts/docs_generate.py --check) */}
+
+Fields and defaults come from the voluptuous schemas in `config_flow.py`; labels, help text and error messages come from `strings.json`. A default shown as an expression is the expression the code evaluates at that point.
+
+## Config flow
+
+Run once, when the integration is added.
+
+### `user`
+
+Handler `async_step_user`. Enter your Scrypted URL and the HA Secret from the Advanced Notifier plugin settings.
+
+| Field | Label | Required | Default | Control | Help |
+| --- | --- | --- | --- | --- | --- |
+| `scrypted_url` | Scrypted URL | yes | — | `text` | Base URL of your Scrypted instance, including port (e.g. port 11080) |
+| `ha_secret` | HA Secret | yes | — | `text` | — |
+
+
+### `select_devices`
+
+Handler `async_step_select_devices`. Choose which Scrypted devices to import into Home Assistant.
+
+| Field | Label | Required | Default | Control | Help |
+| --- | --- | --- | --- | --- | --- |
+| `selected_device_ids` | Devices | yes | `default` | `select (multiple, list)` | — |
+
+
+### Errors
+
+| Key | Message |
+| --- | --- |
+| `cannot_connect` | Cannot connect to Scrypted. Check the URL and that the plugin is running. |
+| `invalid_secret` | Invalid HA Secret. |
+| `origin_not_allowed` | This Home Assistant URL is not in the plugin's allowed origins. Add it to haAllowedOrigins in the plugin settings. |
+| `no_devices_selected` | Select at least one device. |
+
+
+### Aborts
+
+| Key | Message |
+| --- | --- |
+| `already_configured` | Integration is already configured. |
+
+
+## Options flow
+
+Reachable from **Configure** on the integration entry after setup.
+
+### `init`
+
+Handler `async_step_init`. Choose what you want to configure.
+
+| Menu option | Label |
+| --- | --- |
+| `manage_devices` | Manage devices |
+| `update_secret` | Update HA Secret |
+
+
+### `manage_devices`
+
+Handler `async_step_manage_devices`. Add or remove Scrypted devices imported into Home Assistant.
+
+| Field | Label | Required | Default | Control | Help |
+| --- | --- | --- | --- | --- | --- |
+| `selected_device_ids` | Devices | yes | `default` | `select (multiple, list)` | — |
+
+
+### `update_secret`
+
+Handler `async_step_update_secret`. Update the shared secret used for communication with the Scrypted plugin. Copy the new value from the plugin settings.
+
+| Field | Label | Required | Default | Control | Help |
+| --- | --- | --- | --- | --- | --- |
+| `ha_secret` | HA Secret | yes | `current_secret` | `text` | — |
+
+
+### Errors
+
+| Key | Message |
+| --- | --- |
+| `cannot_connect` | Cannot connect to Scrypted. The current device list is shown as fallback. |
+| `invalid_secret` | Invalid HA Secret. |
+| `origin_not_allowed` | This Home Assistant URL is not in the plugin's allowed origins. |
+| `no_devices_selected` | Select at least one device. |
+| `empty_secret` | Secret cannot be empty. |
+

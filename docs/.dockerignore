@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.source
+.git
+.gitignore
+npm-debug.log
+*.log
+.DS_Store
+.vscode
+.idea
