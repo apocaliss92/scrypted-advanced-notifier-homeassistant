@@ -1,0 +1,126 @@
+# Builds the docs site and, when configured, deploys it to its Railway service.
+#
+# Two jobs on purpose:
+#   build   always runs — `mkdocs build --strict`, so a broken internal link fails
+#           against the commit that caused it, and uploads the site as an artifact
+#           so it is downloadable even with no host configured
+#   deploy  needs build; skips with a notice when the Railway secret is absent,
+#           because a red X on every docs commit before setup is just noise
+#
+# Path-filtered: integration code changes far more often than the docs, and
+# redeploying the docs on every code commit is pure churn. (`release.yml` is the
+# workflow that reacts to code — this one never touches versions or tags.)
+#
+# ── What you set on GitHub ───────────────────────────────────────────────────
+#   Settings → Secrets and variables → Actions
+#
+#   Secret    RAILWAY_TOKEN              a Railway project or account token
+#   Variable  RAILWAY_DOCS_SERVICE       the service name, e.g. `docs`
+#   Variable  RAILWAY_DOCS_ENVIRONMENT   optional, defaults to `production`
+#
+# Nothing in this file needs editing — that is why they are vars and secrets.
+#
+# ── What you set on the Railway SERVICE ──────────────────────────────────────
+#   RAILWAY_DOCKERFILE_PATH=Dockerfile.docs
+#   DOCS_PUBLIC=true   (or DOCS_USER + DOCS_PASSWORD_HASH)
+#
+# The container refuses to start without an access decision — docs/hosting.md.
+#
+# ── The simpler alternative ──────────────────────────────────────────────────
+# Railway's native GitHub integration auto-deploys on push with no workflow and no
+# token, and service-level *watch paths* do the same filtering:
+#
+#   docs/**, mkdocs.yml, Dockerfile.docs, Dockerfile.docs.dockerignore, docker/docs.*
+#
+# If you use that, delete the `deploy` job below and keep `build`. Two mechanisms
+# deploying one service is how you end up debugging which of them shipped.
+name: Docs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "Dockerfile.docs"
+      - "Dockerfile.docs.dockerignore"
+      - "docker/docs.Caddyfile"
+      - "docker/docs-entrypoint.sh"
+      - ".github/workflows/docs-deploy.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  # A docs deploy is not worth queueing — the newest push wins.
+  group: docs
+  cancel-in-progress: true
+
+env:
+  # Pinned to match Dockerfile.docs, so CI and the deployed image render the same
+  # site. Bump both together.
+  MKDOCS_MATERIAL_VERSION: "9.5.49"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build site
+        run: |
+          pip install --quiet "mkdocs-material==${MKDOCS_MATERIAL_VERSION}"
+          mkdocs build --strict
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scrypted-an-docs-site
+          path: site/
+          retention-days: 30
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Distinguishes "not set up yet" from "set up wrongly". A push should not go
+      # red before the service exists; an explicit dispatch should, because the
+      # person asking for a deploy needs to know it did not happen.
+      - name: Check configuration
+        id: config
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          SERVICE: ${{ vars.RAILWAY_DOCS_SERVICE }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ] && [ -n "$SERVICE" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          missing=""
+          [ -n "$RAILWAY_TOKEN" ] || missing="$missing RAILWAY_TOKEN(secret)"
+          [ -n "$SERVICE" ] || missing="$missing RAILWAY_DOCS_SERVICE(variable)"
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::error::Cannot deploy. Missing:$missing — see the header of this workflow."
+            exit 1
+          fi
+          echo "::notice::Railway not configured yet (missing:$missing) — built only, not deployed."
+
+      - name: Deploy
+        if: steps.config.outputs.ready == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli@4
+          railway up \
+            --service "${{ vars.RAILWAY_DOCS_SERVICE }}" \
+            --environment "${{ vars.RAILWAY_DOCS_ENVIRONMENT || 'production' }}" \
+            --ci
