@@ -77,7 +77,9 @@ class ScryptedBaseEntity(Entity):
 
     def set_plugin_available(self, available: bool) -> None:
         self._plugin_available = available
-        self.schedule_update_ha_state()
+        # Entity may not be added to HA yet — skip state write in that case.
+        if self.hass is not None:
+            self.schedule_update_ha_state()
 
     def _on_state_update(self, value: str) -> None:
         self._state_value = value
@@ -89,4 +91,6 @@ class ScryptedBaseEntity(Entity):
     def update_config(self, new_config: dict) -> None:
         """Called when the entity config changes (e.g. select options change)."""
         self._cmp_config = new_config
-        self.schedule_update_ha_state()
+        # Entity may not be added to HA yet — skip state write in that case.
+        if self.hass is not None:
+            self.schedule_update_ha_state()
