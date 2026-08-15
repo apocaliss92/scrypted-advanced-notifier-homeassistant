@@ -59,7 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         value = event.data.get("value", "")
         state_update_count["count"] += 1
         if state_update_count["count"] <= 10:
-            _LOGGER.warning("state_update #%d: topic=%s value=%s", state_update_count["count"], topic, value[:100] if value else "")
+            _LOGGER.debug("state_update #%d: topic=%s value=%s", state_update_count["count"], topic, value[:100] if value else "")
         manager.update_state(topic, value)
 
     # Debounce entity_change events: collect device IDs for 2s then batch-fetch
@@ -85,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _on_entity_change(event: Event) -> None:
         device_id = event.data.get("device_id", "")
-        _LOGGER.warning("entity_change received: device_id=%s (selected=%s)", device_id, device_id in selected_set if selected_set else "no filter")
+        _LOGGER.debug("entity_change received: device_id=%s (selected=%s)", device_id, device_id in selected_set if selected_set else "no filter")
         # Only process entity changes for devices we have selected
         if selected_set and device_id not in selected_set:
             return
@@ -115,9 +115,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     async def _on_heartbeat(event: Event) -> None:
-        _LOGGER.warning("Heartbeat received (available=%s)", manager.available)
+        _LOGGER.debug("Heartbeat received (available=%s)", manager.available)
         if not manager.available:
-            _LOGGER.warning("Heartbeat received — marking all entities available")
+            _LOGGER.info("Heartbeat received — marking all entities available")
             manager.set_available(True)
         _reset_heartbeat_timeout()
 
@@ -127,16 +127,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .action_listener import async_setup_action_listener
     unsub_action = async_setup_action_listener(hass, entry.entry_id)
     hass.data[DOMAIN][f"{entry.entry_id}_unsub"] = [unsub_state, unsub_entity, unsub_heartbeat, unsub_action]
-    _LOGGER.warning("Bus listeners registered for events: %s, %s, %s, mobile_app_notification_action. Selected devices: %s",
+    _LOGGER.debug("Bus listeners registered for events: %s, %s, %s, mobile_app_notification_action. Selected devices: %s",
                     HA_EVENT_STATE_UPDATE, HA_EVENT_ENTITY_CHANGE, HA_EVENT_HEARTBEAT, selected_ids)
     # Start heartbeat timeout — if no heartbeat arrives within timeout, entities go unavailable
     _reset_heartbeat_timeout()
 
     # Set up platforms, then fetch entities from plugin REST endpoint and create them directly
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    _LOGGER.warning("Fetching entities for selected IDs: %s", selected_ids)
+    _LOGGER.debug("Fetching entities for selected IDs: %s", selected_ids)
     devices, states = await _fetch_entities(scrypted_url, ha_secret, selected_ids, hass)
-    _LOGGER.warning("Fetched %d devices and %d initial states", len(devices), len(states))
+    _LOGGER.debug("Fetched %d devices and %d initial states", len(devices), len(states))
     # Check for selected devices that were not returned by the plugin (likely not enabled for HA)
     if selected_ids:
         returned_ids = {d.get("device_id", "") for d in devices}
